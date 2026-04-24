@@ -1,0 +1,31 @@
+{
+  "model": "sonnet",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"$(date -Iseconds) SESSION_START model=${ANTHROPIC_MODEL:-claude}\" >> ~/.claude/timing.log"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"$(date -Iseconds) SESSION_STOP\" >> ~/.claude/timing.log"
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash ~/.claude/statusline-command.sh"
+  },
+  "voiceEnabled": true
+}
