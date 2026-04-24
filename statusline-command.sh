@@ -43,7 +43,7 @@ line1+=("$(printf '\033[34m%s\033[0m' "$cwd_display")")
 
 # Git branch with optional dirty indicator
 if [ -n "$branch" ]; then
-  line1+=("$(printf '\033[32m\xef\x84\xa6 %s\033[0m' "$branch")${dirty}")
+  line1+=("$(printf '\033[32m⎇ %s\033[0m' "$branch")${dirty}")
 fi
 
 # Get terminal width, fall back to 80
