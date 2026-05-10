@@ -1,6 +1,17 @@
 {
   "model": "sonnet",
   "hooks": {
+    "Notification": [
+      {
+        "matcher": "permission_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afplay /System/Library/Sounds/Glass.aiff 2>/dev/null || printf \"\\a\""
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "matcher": "startup",
@@ -17,6 +28,10 @@
         "hooks": [
           {
             "type": "command",
+            "command": "afplay /System/Library/Sounds/Ping.aiff 2>/dev/null || printf \"\\a\""
+          },
+          {
+            "type": "command",
             "command": "echo \"$(date -Iseconds) SESSION_STOP\" >> ~/.claude/timing.log"
           }
         ]
@@ -27,5 +42,8 @@
     "type": "command",
     "command": "bash ~/.claude/statusline-command.sh"
   },
-  "voiceEnabled": true
+  "voiceEnabled": true,
+  "awaySummaryEnabled": false,
+  "skipDangerousModePermissionPrompt": true,
+  "preferredNotifChannel": "terminal_bell"
 }
