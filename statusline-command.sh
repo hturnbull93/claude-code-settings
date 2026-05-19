@@ -191,8 +191,9 @@ while [ "${#line1[@]}" -gt 1 ]; do
     break
   fi
   # Prepend the last line1 part to line2
-  last="${line1[-1]}"
-  unset 'line1[-1]'
+  last_idx=$(( ${#line1[@]} - 1 ))
+  last="${line1[$last_idx]}"
+  unset 'line1[$last_idx]'
   line2=("$last" "${line2[@]}")
 done
 
