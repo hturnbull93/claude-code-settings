@@ -1,5 +1,4 @@
 {
-  "model": "sonnet",
   "hooks": {
     "Notification": [
       {
@@ -47,6 +46,27 @@
         ]
       }
     ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afplay /System/Library/Sounds/Glass.aiff 2>/dev/null || printf \"\\a\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); echo \"$input\" | jq -r '.tool_input.command // \"\"' | grep -q '\\bsed\\b' && echo '{\"decision\": \"block\", \"reason\": \"sed is blocked — use Read/Edit/Write tools instead\"}' || true"
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [
@@ -77,10 +97,14 @@
   },
   "effortLevel": "medium",
   "awaySummaryEnabled": false,
-  "skipDangerousModePermissionPrompt": true,
-  "preferredNotifChannel": "terminal_bell",
-  "voiceEnabled": false,
+  "tui": "fullscreen",
   "voice": {
     "enabled": false
-  }
+  },
+  "skipDangerousModePermissionPrompt": true,
+  "preferredNotifChannel": "terminal_bell",
+  "remoteControlAtStartup": true,
+  "agentPushNotifEnabled": true,
+  "voiceEnabled": false,
+  "model": "claude-sonnet-5"
 }
