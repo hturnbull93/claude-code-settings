@@ -63,11 +63,11 @@ fi
 line1+=("$(printf "${host_color}%s@%s\033[0m" "$(whoami)" "$host")")
 
 # CWD
-line1+=("$(printf '\033[34m%s\033[0m' "$cwd_display")")
+line1+=("$(printf '\033[30;44m%s\033[0m' "$cwd_display")")
 
 # Git branch with optional dirty indicator
 if [ -n "$branch" ]; then
-  line1+=("$(printf '\033[32m⎇ %s\033[0m' "$branch")${dirty}")
+  line1+=("$(printf '\033[30;42m⎇ %s\033[0m' "$branch")${dirty}")
 fi
 
 # Get terminal width, fall back to 80
