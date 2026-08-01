@@ -20,16 +20,6 @@
             "command": "echo \"$(date -Iseconds) SESSION_START model=${ANTHROPIC_MODEL:-claude}\" >> ~/.claude/timing.log"
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"/Users/harryturnbull/.claude/hooks/caveman-activate.js\"",
-            "timeout": 5,
-            "statusMessage": "Loading caveman mode..."
-          }
-        ]
       }
     ],
     "Stop": [
@@ -63,18 +53,6 @@
           {
             "type": "command",
             "command": "input=$(cat); echo \"$input\" | jq -r '.tool_input.command // \"\"' | grep -q '\\bsed\\b' && echo '{\"decision\": \"block\", \"reason\": \"sed is blocked — use Read/Edit/Write tools instead\"}' || true"
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"/Users/harryturnbull/.claude/hooks/caveman-mode-tracker.js\"",
-            "timeout": 5,
-            "statusMessage": "Tracking caveman mode..."
           }
         ]
       }
