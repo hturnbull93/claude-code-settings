@@ -23,7 +23,7 @@ fi
 
 # Shorten home directory to ~
 home="$HOME"
-cwd_display="${cwd/#$home/\~}"
+cwd_display="${cwd/#$home/~}"
 
 # Get git branch (no locks)
 branch=$(GIT_OPTIONAL_LOCKS=0 git -C "$cwd" symbolic-ref --short HEAD 2>/dev/null)
