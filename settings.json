@@ -95,16 +95,16 @@
       }
     }
   },
-  "effortLevel": "medium",
+  "effortLevel": "high",
   "awaySummaryEnabled": false,
   "tui": "fullscreen",
   "voice": {
     "enabled": false
   },
   "skipDangerousModePermissionPrompt": true,
+  "editorMode": "normal",
   "preferredNotifChannel": "terminal_bell",
   "remoteControlAtStartup": true,
   "agentPushNotifEnabled": true,
-  "voiceEnabled": false,
-  "model": "claude-sonnet-5"
+  "voiceEnabled": false
 }
