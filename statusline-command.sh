@@ -37,15 +37,16 @@ if [ -n "$branch" ]; then
   fi
 fi
 
-# Helper to print an array of parts joined by " | "
+# Helper to print an array of parts joined by a separator (default " | ")
 print_line() {
   eval "local _parts=(\"\${$1[@]}\")"
+  local sep="${2- \033[2m|\033[0m }"
   if [ "${#_parts[@]}" -eq 0 ]; then
     return
   fi
   printf '%s' "${_parts[0]}"
   for part in "${_parts[@]:1}"; do
-    printf ' \033[2m|\033[0m %s' "$part"
+    printf "${sep}%s" "$part"
   done
   printf '\n'
 }
@@ -60,14 +61,14 @@ if [[ "$host" == *fedora* ]]; then
 else
   host_color='\033[37;40m'
 fi
-line1+=("$(printf "${host_color}%s@%s\033[0m" "$(whoami)" "$host")")
+line1+=("$(printf "${host_color} %s@%s \033[0m" "$(whoami)" "$host")")
 
 # CWD
-line1+=("$(printf '\033[30;44m%s\033[0m' "$cwd_display")")
+line1+=("$(printf '\033[30;44m %s \033[0m' "$cwd_display")")
 
 # Git branch with optional dirty indicator
 if [ -n "$branch" ]; then
-  line1+=("$(printf '\033[30;42m⎇ %s\033[0m' "$branch")${dirty}")
+  line1+=("$(printf '\033[30;42m ⎇ %s \033[0m' "$branch")${dirty}")
 fi
 
 # Get terminal width, fall back to 80
@@ -172,19 +173,14 @@ fi
 # Strip ANSI escape codes and return display length
 display_len() { echo -n "$1" | sed 's/\x1b\[[0-9;]*m//g' | wc -c; }
 
-# Calculate display length of line1 as it would appear joined by " | "
+# Calculate display length of line1 as it would appear (segments touch, no separator)
 line1_display_len() {
   local total=0
-  local sep=" | "
-  local sep_len=3
   local i
   for i in "${!line1[@]}"; do
     local part_len
     part_len=$(display_len "${line1[$i]}")
     total=$((total + part_len))
-    if [ "$i" -gt 0 ]; then
-      total=$((total + sep_len))
-    fi
   done
   echo "$total"
 }
@@ -203,5 +199,5 @@ while [ "${#line1[@]}" -gt 1 ]; do
   line2=("$last" "${line2[@]}")
 done
 
-print_line line1
+print_line line1 ""
 print_line line2
