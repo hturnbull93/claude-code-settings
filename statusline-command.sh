@@ -53,8 +53,14 @@ print_line() {
 # Line 1: user@host, cwd, git branch (with dirty indicator)
 line1=()
 
-# user@hostname (mirrors agnoster context segment)
-line1+=("$(printf '\033[1m%s@%s\033[0m' "$(whoami)" "$(hostname -s)")")
+# user@hostname (mirrors agnoster context segment; green when host is fedora)
+host="$(hostname -s)"
+if [[ "$host" == *fedora* ]]; then
+  host_color='\033[32m'
+else
+  host_color='\033[1m'
+fi
+line1+=("$(printf "${host_color}%s@%s\033[0m" "$(whoami)" "$host")")
 
 # CWD
 line1+=("$(printf '\033[34m%s\033[0m' "$cwd_display")")
