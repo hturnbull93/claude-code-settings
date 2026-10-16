@@ -86,5 +86,5 @@
   "remoteControlAtStartup": true,
   "agentPushNotifEnabled": true,
   "voiceEnabled": true,
-  "model": "opus"
+  "model": "claude-opus-5-5"
 }
