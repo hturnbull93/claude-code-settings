@@ -85,6 +85,5 @@
   "preferredNotifChannel": "terminal_bell",
   "remoteControlAtStartup": true,
   "agentPushNotifEnabled": true,
-  "voiceEnabled": true,
-  "model": "claude-opus-5-5"
+  "voiceEnabled": true
 }
