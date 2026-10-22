@@ -45,17 +45,6 @@
           }
         ]
       }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "input=$(cat); echo \"$input\" | jq -r '.tool_input.command // \"\"' | grep -q '\\bsed\\b' && echo '{\"decision\": \"block\", \"reason\": \"sed is blocked — use Read/Edit/Write tools instead\"}' || true"
-          }
-        ]
-      }
     ]
   },
   "statusLine": {
@@ -88,5 +77,6 @@
   "voiceEnabled": true,
   "env": {
     "CLAUDE_CODE_PLUGIN_DIRS": "~/.claude/mods/env-guard"
-  }
+  },
+  "model": "opus"
 }

@@ -36,7 +36,7 @@ Dependencies: `bash`, `jq`, `git`, `tput`, `node` (node only needed for the node
 
 Global Claude Code settings with:
 
-- **Model** — defaults to `sonnet`
+- **Model** — defaults to `opus`
 - **Notification hook** — plays `Glass.aiff` on permission prompts (falls back to `paplay`, then `canberra-gtk-play`, then terminal bell on Linux)
 - **Session timing hooks** — logs session start/stop timestamps to `~/.claude/timing.log`; plays `Ping.aiff` on stop (falls back to `paplay`, then `canberra-gtk-play`, then terminal bell on Linux)
 - **Status line** — delegates to `statusline-command.sh` (see below)
