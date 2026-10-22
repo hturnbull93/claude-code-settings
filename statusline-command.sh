@@ -7,20 +7,6 @@ cost=$(echo "$input" | jq -r '.cost.total_cost_usd // empty')
 model=$(echo "$input" | jq -r '.model.display_name // empty')
 todo_count=$(echo "$input" | jq '[.todos // [] | .[] | select(.status != "completed")] | length')
 
-# Write current session cost into local budget tracker
-budget_file="$HOME/.claude/budget.json"
-if [ -n "$cost" ] && [ -f "$budget_file" ]; then
-  budget_now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-  tmp=$(mktemp)
-  if jq --arg key "$PPID" --arg c "$cost" --arg now "$budget_now" \
-    '.sessions[$key] = {"cost": ($c | tonumber), "last_updated": $now}' \
-    "$budget_file" > "$tmp" 2>/dev/null; then
-    mv "$tmp" "$budget_file"
-  else
-    rm -f "$tmp"
-  fi
-fi
-
 # Shorten home directory to ~
 home="$HOME"
 cwd_display="${cwd/#$home/~}"
@@ -93,14 +79,10 @@ if [ -n "$used" ]; then
   line2+=("$(printf "${color}ctx: %s%%\033[0m" "$used_int")")
 fi
 
-# Auto-detect plan type from input JSON:
-#   five_hour.used_percentage present → Pro/Max plan → show 5h rate limit
-#   cost present and non-empty       → API key billing → show budget sections
-#   both present (shouldn't happen)  → prefer 5h mode
 five_pct=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty')
 
 if [ -n "$five_pct" ]; then
-  # Pro/Max plan: show five-hour rate limit
+  # Show five-hour rate limit
   five_resets=$(echo "$input" | jq -r '.rate_limits.five_hour.resets_at // empty')
   five_int=$(printf '%.0f' "$five_pct")
   if [ "$five_int" -ge 80 ]; then
@@ -121,34 +103,6 @@ if [ -n "$five_pct" ]; then
     fi
   fi
   line2+=("$(printf "${five_color}%s\033[0m" "$five_label")")
-elif [ -n "$cost" ]; then
-  # API key billing: show session cost and budget remaining
-
-  cost_display=$(printf '%.4f' "$cost")
-  line2+=("$(printf '\033[36m$%s\033[0m' "$cost_display")")
-
-  # Budget remaining (local tracker — set via: ~/.claude/set-budget <amount>)
-  if [ -f "$budget_file" ]; then
-    baseline_amount=$(jq -r '.baseline.amount // empty' "$budget_file" 2>/dev/null)
-    baseline_at=$(jq -r '.baseline.set_at // empty' "$budget_file" 2>/dev/null)
-    if [ -n "$baseline_amount" ] && [ -n "$baseline_at" ]; then
-      total_spent=$(jq --arg since "$baseline_at" \
-        '[.sessions | to_entries[] | select(.value.last_updated >= $since) | .value.cost] | add // 0' \
-        "$budget_file" 2>/dev/null)
-      if [ -n "$total_spent" ]; then
-        remaining=$(awk -v b="$baseline_amount" -v s="$total_spent" 'BEGIN {printf "%.2f", b - s}')
-        remaining_pct=$(awk -v b="$baseline_amount" -v s="$total_spent" 'BEGIN {printf "%.0f", ((b - s) / b) * 100}')
-        if [ "$remaining_pct" -le 10 ] 2>/dev/null; then
-          budget_color='\033[31m'
-        elif [ "$remaining_pct" -le 30 ] 2>/dev/null; then
-          budget_color='\033[33m'
-        else
-          budget_color='\033[32m'
-        fi
-        line2+=("$(printf "${budget_color}\$%s left\033[0m" "$remaining")")
-      fi
-    fi
-  fi
 fi
 
 # Todo count
