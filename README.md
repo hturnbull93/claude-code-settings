@@ -8,7 +8,25 @@ My personal [Claude Code](https://claude.ai/code) global config.
 git clone https://github.com/hturnbull93/claude-code-settings
 cp claude-code-settings/settings.json ~/.claude/settings.json
 cp claude-code-settings/statusline-command.sh ~/.claude/statusline-command.sh
+
+# env-guard mod and its helper scripts (symlinked so repo updates apply)
+mkdir -p ~/.claude/bin ~/.claude/mods
+ln -sfn "$PWD/claude-code-settings/bin/env-check"  ~/.claude/bin/env-check
+ln -sfn "$PWD/claude-code-settings/bin/env-append" ~/.claude/bin/env-append
+ln -sfn "$PWD/claude-code-settings/mods/env-guard" ~/.claude/mods/env-guard
 ```
+
+`settings.json` loads the mod through `env.CLAUDE_CODE_PLUGIN_DIRS`, so the symlinks above must exist.
+
+### `mods/env-guard`
+
+A Claude Code mod that stops Claude reading dotenv files directly.
+
+- `Read`, `Edit` and `Write` are denied on `.env`, `.env.*` and `*.env`.
+- Bash commands that mention a `.env` path are denied.
+- Allowed instead: `bin/env-check [file...]` (lists keys, comments and set/EMPTY, never values) and `bin/env-append <file> KEY=VALUE` (adds new keys, refuses existing ones, never overwrites).
+
+It is a tripwire against accidents, not a sandbox: obfuscated shell, scripts that read the file, and MCP file tools are not covered.
 
 Dependencies: `bash`, `jq`, `git`, `tput`, `node` (node only needed for the node version display).
 

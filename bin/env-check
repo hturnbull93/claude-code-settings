@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Usage: env-check [file...]   (default: .env* files in the current directory)
+# Prints, per line: keys, comments, and whether a key is set or empty.
+# Never prints a value. Commented-out assignments (# KEY=value) are redacted.
+set -u
+
+files=("$@")
+if [ ${#files[@]} -eq 0 ]; then
+  for f in .env .env.*; do [ -f "$f" ] && files+=("$f"); done
+fi
+if [ ${#files[@]} -eq 0 ]; then
+  echo "no .env files found in $(pwd)"
+  exit 0
+fi
+
+for f in "${files[@]}"; do
+  if [ ! -f "$f" ]; then
+    echo "== $f: not found"
+    continue
+  fi
+  echo "== $f"
+  awk '
+    function trim(s) { gsub(/^[ \t\r]+|[ \t\r]+$/, "", s); return s }
+    {
+      line = trim($0)
+      if (line == "") next
+      if (line ~ /^#/) {
+        if (line ~ /^#[ \t]*(export[ \t]+)?[A-Za-z_][A-Za-z0-9_]*[ \t]*=/) {
+          k = line; sub(/^#[ \t]*(export[ \t]+)?/, "", k); sub(/[ \t]*=.*/, "", k)
+          printf "L%-4d # %s=<redacted>  (commented-out assignment)\n", NR, k
+        } else {
+          printf "L%-4d %s\n", NR, line
+        }
+        next
+      }
+      sub(/^export[ \t]+/, "", line)
+      eq = index(line, "=")
+      if (eq == 0) { printf "L%-4d ?  malformed (no =)\n", NR; next }
+      key = trim(substr(line, 1, eq - 1))
+      val = trim(substr(line, eq + 1))
+      if (val ~ /^#/ || val == "\"\"" || val == "\047\047" || val == "") status = "EMPTY"
+      else status = "set"
+      printf "L%-4d %-32s %s\n", NR, key, status
+    }
+  ' "$f"
+done

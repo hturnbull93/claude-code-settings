@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Usage: env-append <env-file> KEY=VALUE [KEY=VALUE...]
+# Appends new keys to a .env file. Never overwrites: an existing key is refused,
+# nothing already in the file is changed or printed. Creates the file if missing.
+set -u
+
+if [ $# -lt 2 ]; then
+  echo "usage: env-append <env-file> KEY=VALUE [KEY=VALUE...]" >&2
+  exit 2
+fi
+
+file=$1; shift
+base=${file##*/}
+case "$base" in
+  .env|.env.*|*.env) ;;
+  *) echo "refused: $base is not a .env-style file" >&2; exit 1 ;;
+esac
+
+status=0
+for pair in "$@"; do
+  key=${pair%%=*}
+  if [ "$key" = "$pair" ] || ! [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+    echo "skipped: not KEY=VALUE with a valid key name" >&2; status=1; continue
+  fi
+  if [ -f "$file" ] && grep -Eq "^[[:space:]]*(export[[:space:]]+)?${key}[[:space:]]*=" "$file"; then
+    echo "refused: $key already exists in $base (not overwriting)" >&2; status=1; continue
+  fi
+  # make sure the last line ends in a newline before appending
+  if [ -s "$file" ] && [ -n "$(tail -c1 "$file")" ]; then printf '\n' >> "$file"; fi
+  printf '%s\n' "$pair" >> "$file"
+  if [ -n "${pair#*=}" ]; then echo "appended: $key (set)"; else echo "appended: $key (empty)"; fi
+done
+exit $status

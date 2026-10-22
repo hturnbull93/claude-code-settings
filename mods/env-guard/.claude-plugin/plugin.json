@@ -1,0 +1,1 @@
+{ "name": "env-guard", "version": "0.1.0", "description": "Blocks Claude from reading .env files; only ~/.claude/bin/env-check (keys, comments, set/empty) is allowed" }
