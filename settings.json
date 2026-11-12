@@ -1,4 +1,8 @@
 {
+  "env": {
+    "CLAUDE_CODE_PLUGIN_DIRS": "~/.claude/mods/env-guard"
+  },
+  "model": "opus",
   "hooks": {
     "Notification": [
       {
@@ -72,11 +76,9 @@
   "skipWorkflowUsageWarning": true,
   "editorMode": "normal",
   "preferredNotifChannel": "terminal_bell",
+  "autoCompactEnabled": true,
   "remoteControlAtStartup": true,
   "agentPushNotifEnabled": true,
   "voiceEnabled": true,
-  "env": {
-    "CLAUDE_CODE_PLUGIN_DIRS": "~/.claude/mods/env-guard"
-  },
-  "model": "opus"
+  "idleCompaction": false
 }
