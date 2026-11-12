@@ -4,17 +4,16 @@ My personal [Claude Code](https://claude.ai/code) global config.
 
 ## Setup
 
-```bash
-git clone https://github.com/hturnbull93/claude-code-settings
-cp claude-code-settings/settings.json ~/.claude/settings.json
-cp claude-code-settings/statusline-command.sh ~/.claude/statusline-command.sh
+Installed by chezmoi: the dotfiles' `run_bootstrap.sh` clones this repo to `~/claude-code-settings` (or pulls it if it's already there) on every `chezmoi apply`, then symlinks it into `~/.claude`:
 
-# env-guard mod and its helper scripts (symlinked so repo updates apply)
-mkdir -p ~/.claude/bin ~/.claude/mods
-ln -sfn "$PWD/claude-code-settings/bin/env-check"  ~/.claude/bin/env-check
-ln -sfn "$PWD/claude-code-settings/bin/env-append" ~/.claude/bin/env-append
-ln -sfn "$PWD/claude-code-settings/mods/env-guard" ~/.claude/mods/env-guard
-```
+| `~/.claude/...` | Repo file |
+|---|---|
+| `settings.json` | `settings.json` |
+| `statusline-command.sh` | `statusline-command.sh` |
+| `bin/env-check`, `bin/env-append` | `bin/env-check`, `bin/env-append` |
+| `mods/env-guard` | `mods/env-guard` |
+
+Because they're symlinks, edits here are live on that machine at once. Other machines pick them up after a push and their next `chezmoi apply`. The same files are used on every machine, so anything machine-specific (like the status line's role bar) is decided when it runs, by hostname or environment.
 
 `settings.json` loads the mod through `env.CLAUDE_CODE_PLUGIN_DIRS`, so the symlinks above must exist.
 
@@ -50,6 +49,8 @@ Renders a two-line status bar at the bottom of the Claude Code UI.
 
 | Segment | Description |
 |---|---|
+| Role bar | Fedora server only (host sessions and agent pods), so it's clear which session you're typing into: green `DESK` in `~/desk`, blue `<repo> · <worktree>` in an Orca worktree (`~/orca/workspaces/<repo>/<worktree>`), orange `<dir>` anywhere else (main checkouts, `~/hole`, ...). Not shown on other machines |
+| `user@host` | Black on green on the Fedora server, white on black elsewhere |
 | Working directory | Current directory with `$HOME` shortened to `~` |
 | Git branch | Branch name with a `*` indicator when there are uncommitted changes |
 
