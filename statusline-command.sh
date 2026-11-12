@@ -9,7 +9,7 @@ todo_count=$(echo "$input" | jq '[.todos // [] | .[] | select(.status != "comple
 
 # Shorten home directory to ~
 home="$HOME"
-cwd_display="${cwd/#$home/~}"
+cwd_display="${cwd/#"$home"/"~"}"
 
 # Get git branch (no locks)
 branch=$(GIT_OPTIONAL_LOCKS=0 git -C "$cwd" symbolic-ref --short HEAD 2>/dev/null)
@@ -37,11 +37,33 @@ print_line() {
   printf '\n'
 }
 
-# Line 1: user@host, cwd, git branch (with dirty indicator)
+# Line 1: role bar, user@host, cwd, git branch (with dirty indicator)
 line1=()
 
-# user@hostname (mirrors agnoster context segment; black-on-green when host is fedora, white-on-black otherwise)
 host="$(hostname -s)"
+
+# Role bar (Fedora server only, host or agent pod), so it's obvious which session
+# you're typing into:
+#   green  = ~/desk, the orchestrator
+#   blue   = an Orca worktree (~/orca/workspaces/<repo>/<worktree>), named <repo> · <worktree>
+#   orange = anywhere else: a main checkout, ~/hole, ~/server-ops, ...
+# Matched on the path rather than $HOME so it also works inside pods.
+# Not shown on other machines (e.g. the Mac).
+if [ -n "$AGENT_POD" ] || [[ "$host" == *fedora* ]]; then
+  case "$cwd" in
+    "$HOME"/desk|"$HOME"/desk/*)
+      role_color='\033[1;30;48;5;40m'; role_label="DESK" ;;
+    */orca/workspaces/*/*)
+      rel="${cwd#*/orca/workspaces/}"
+      wt="${rel#*/}"
+      role_color='\033[1;97;44m'; role_label="${rel%%/*} · ${wt%%/*}" ;;
+    *)
+      role_color='\033[1;30;48;5;208m'; role_label="$(basename "$cwd")" ;;
+  esac
+  line1+=("$(printf "${role_color} %s \033[0m" "$role_label")")
+fi
+
+# user@hostname (mirrors agnoster context segment; black-on-green when host is fedora, white-on-black otherwise)
 if [[ "$host" == *fedora* ]]; then
   host_color='\033[30;42m'
 else
