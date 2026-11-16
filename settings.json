@@ -1,6 +1,6 @@
 {
   "env": {
-    "CLAUDE_CODE_PLUGIN_DIRS": "~/.claude/mods/env-guard"
+    "CLAUDE_CODE_PLUGIN_DIRS": "~/.claude/mods/env-guard:~/.claude/mods/message-times"
   },
   "model": "opus",
   "hooks": {
@@ -74,11 +74,13 @@
   },
   "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true,
+  "theme": "dark",
   "editorMode": "normal",
   "preferredNotifChannel": "terminal_bell",
   "autoCompactEnabled": true,
+  "idleCompaction": false,
+  "autoScrollEnabled": true,
   "remoteControlAtStartup": true,
   "agentPushNotifEnabled": true,
-  "voiceEnabled": true,
-  "idleCompaction": false
+  "voiceEnabled": true
 }
