@@ -3,9 +3,33 @@ import type { Register } from 'claude-code'
 // Dotenv-style basenames: .env, .env.local, .env.production, prod.env
 const ENV_BASENAME = /^(\.env(\.[^/]*)?|[^/]+\.env)$/
 
-// A .env path token inside a shell command. Preceded by start, whitespace, a
-// slash, a quote or a redirect, so `process.env.X` and `.envrc` do not match.
-const ENV_IN_COMMAND = /(^|[\s/'"=:<>(])\.env(?![A-Za-z0-9_])/
+// Templates committed to repos hold placeholder keys, not secrets, so they
+// are not blocked: .env.example, .env.local.sample, example.env, ...
+const TEMPLATE = 'example|sample|template|dist'
+const TEMPLATE_BASENAME = new RegExp(
+  `^(?:\\.env(?:\\.[^/]+)?\\.(?:${TEMPLATE})|(?:[^/]+\\.)?(?:${TEMPLATE})\\.env)$`,
+)
+
+// Every .env path token inside a shell command. Preceded by start, whitespace,
+// a slash, a quote or a redirect, so `process.env.X` and `.envrc` do not
+// match. Captures the dotted suffix (.local, .example, ...) and the character
+// after it.
+const ENV_IN_COMMAND =
+  /(?<=^|[\s/'"=:<>(])\.env(?![A-Za-z0-9_])((?:\.[A-Za-z0-9_-]+)*)(?=(.?))/gs
+
+// A token counts as a template only when its last suffix is a template one
+// and it ends cleanly: a glob, brace, variable, slash or backslash after it
+// could make the shell reach a real file (.env.example* matches
+// .env.example.local), so those stay denied.
+const TEMPLATE_SUFFIX = new RegExp(`\\.(?:${TEMPLATE})$`)
+const CLEAN_END = /^(?:|[\s'";&|)<>])$/
+
+const isTemplateToken = ([, suffix, after]: RegExpMatchArray) =>
+  TEMPLATE_SUFFIX.test(suffix) && CLEAN_END.test(after)
+
+// True if any .env token in the command is not a template.
+const touchesRealEnv = (command: string) =>
+  [...command.matchAll(ENV_IN_COMMAND)].some(m => !isTemplateToken(m))
 
 // The only sanctioned ways in, plain args and no shell operators:
 // env-check (keys, comments, set/empty) and env-append (add new keys, never overwrite).
@@ -20,7 +44,7 @@ export const register: Register = on => {
     on('tool.call', { tool }, ($, e, next) => {
       const base = e.file_path.split('/').pop() ?? ''
 
-      return ENV_BASENAME.test(base)
+      return ENV_BASENAME.test(base) && !TEMPLATE_BASENAME.test(base)
         ? { deny: `${$.plugin.name}: ${tool} on ${e.file_path} is blocked. ${HINT}` }
         : next(e)
     }).catch(($, e, next) =>
@@ -31,7 +55,7 @@ export const register: Register = on => {
   on('tool.call', { tool: 'Bash' }, ($, e, next) => {
     const command = e.command.trim()
 
-    if (CHECKER.test(command) || !ENV_IN_COMMAND.test(command)) {
+    if (CHECKER.test(command) || !touchesRealEnv(command)) {
       return next(e)
     }
 
