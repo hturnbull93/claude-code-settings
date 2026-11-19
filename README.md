@@ -21,10 +21,10 @@ Because they're symlinks, edits here are live on that machine at once. Other mac
 
 A Claude Code mod that stops Claude reading dotenv files directly.
 
-- `Read`, `Edit` and `Write` are denied on `.env`, `.env.*` and `*.env`.
+- `Read`, `Edit` and `Write` are denied on `.env`, `.env.*` and `*.env`, judged by the name the path ends on once `.`, `..` and trailing slashes are folded (`/repo/.env/` and `/repo/.env/x/..` are `.env`).
 - Bash commands that mention a `.env` path are denied.
-- Templates are open to the file tools only: `Read`, `Edit` and `Write` may open a basename whose last part is `.example`, `.sample`, `.template` or `.dist` (`.env.example`, `.env.local.sample`), or an `example.env`-style name (`example.env`, `prod.sample.env`), but only if the path, with symlinks followed, lands on a template too. A template-named symlink to `.env`, a dangling one, a path with `.` or `..` segments, a relative path, or a folder that isn't there is denied.
-- Bash has no template exemption: any command mentioning a `.env` name is denied, templates included. Any name the guard let through, the shell could rewrite into the real one (`f=.env.example; cat ${f%.example}`), so agents edit templates with the `Edit` tool instead. A regex like `grep '\.env'` is denied too, since `\.env` is `.env` to the shell.
+- Templates are open to the file tools only: `Read`, `Edit` and `Write` may open a basename whose last part is `.example`, `.sample`, `.template` or `.dist` (`.env.example`, `.env.local.sample`), or an `example.env`-style name (`example.env`, `prod.sample.env`), but only if the path, with symlinks followed, lands on a template too. A template-named symlink to `.env`, a dangling one, a template path with `.`, `..` or empty segments (a trailing slash), a relative path, or a folder that isn't there is denied.
+- Bash has no template exemption: any command mentioning a `.env` name is denied, templates included. Any name the guard let through, the shell could rewrite into the real one (`f=.env.example; cat ${f%.example}`), so agents edit templates with the `Edit` tool instead. A regex like `grep '\.env'` is denied too, since `\.env` is `.env` to the shell (`grep 'process\.env\.'` is fine), and so is a jq filter on an `.env` field (`jq '.a|.env'`).
 - The template test goes by name, so a secrets file named like one (`.env.dist` or `.env.production.dist` holding live keys) is open to the file tools.
 - Bash only spots names starting `.env`; `*.env` names like `prod.env` are caught by the file tools but not in commands.
 - Allowed instead: `bin/env-check [file...]` (lists keys, comments and set/EMPTY, never values) and `bin/env-append <file> KEY=VALUE` (adds new keys, refuses existing ones, never overwrites).
@@ -33,7 +33,7 @@ It is a tripwire against accidents, not a sandbox: obfuscated shell, scripts tha
 
 Agent pods on the Fedora server use this same mod: `agent-pod` (in server-ops) mounts this repo's `mods/` folder read-only into each pod, so a change here reaches pods as soon as the host checkout is updated (new Claude sessions pick it up).
 
-Tests: `npm test` (node 23.6+, no install needed).
+Tests: `npm test` (node 23.6+, no install needed), in `tests/`. They run the hook under node with a `$.fs` stand-in, not under the host's own `claude plugin test` kit.
 
 Dependencies: `bash`, `jq`, `git`, `tput`, `node` (node only needed for the node version display).
 

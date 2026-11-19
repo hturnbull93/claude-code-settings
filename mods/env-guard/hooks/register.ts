@@ -12,13 +12,14 @@ const TEMPLATE_BASENAME = new RegExp(
 )
 
 // A .env path token inside a shell command. Preceded by start, whitespace, a
-// slash, a quote, a redirect, a shell list/brace/alternation character, a
-// backslash (`\.env` is `.env` to the shell), `@` (curl's `-d @.env`) or a short
-// option (`-f.env`), so `process.env.X` and `.envrc` do not match but `{x,.env}` and
-// `(a|.env)` do. A regex pattern like `grep '\.env'` is denied too.
+// slash, a quote, a redirect, a shell list/brace/alternation character, `@`
+// (curl's `-d @.env`) or a short option at a word start (`-f.env`), then an
+// optional backslash (`\.env` is `.env` to the shell). So `process.env.X`,
+// `process\.env`, `app-b.env` and `.envrc` do not match, but `{x,.env}`,
+// `(a|.env)`, `cat \.env` and a pattern like `grep '\.env'` do.
 // Templates are denied here too: any string the guard lets through, the shell
 // can rewrite into the real name (`f=.env.example; cat ${f%.example}`).
-const ENV_IN_COMMAND = /(^|[\s/'"=:<>(){},|;&`\\@]|-[A-Za-z])\.env(?![A-Za-z0-9_])/
+const ENV_IN_COMMAND = /(?:^|[\s/'"=:<>(){},|;&`@]|(?:^|\s)-[A-Za-z])\\?\.env(?![A-Za-z0-9_])/
 
 // The only sanctioned ways in, plain args and no shell operators:
 // env-check (keys, comments, set/empty) and env-append (add new keys, never overwrite).
@@ -31,7 +32,22 @@ const HINT =
 const TEMPLATE_HINT =
   'Templates (.env.example, .env.sample, ...) can be read and edited with the Read, Edit and Write tools, not from Bash.'
 
-const basename = (path: string) => path.split('/').pop() ?? ''
+// The name a path ends on once `.`, `..`, repeated and trailing separators are
+// folded by spelling, the way the file tools clean a path up: `/repo/.env/`,
+// `/repo/.env/.` and `/repo/.env/x/..` all end on `.env`.
+const basename = (path: string) => {
+  const kept: string[] = []
+
+  for (const segment of path.split(/[\\/]/)) {
+    if (segment === '..') {
+      kept.pop()
+    } else if (segment !== '' && segment !== '.') {
+      kept.push(segment)
+    }
+  }
+
+  return kept.pop() ?? ''
+}
 
 // The slice of `$.fs` this guard uses.
 type Fs = {
@@ -68,7 +84,7 @@ const landing = async (fs: Fs, path: string) => {
 
   const entries = await fs.list(dir.realPath).catch(() => undefined)
 
-  if (entries === undefined || entries.some(entry => entry.name === name)) {
+  if (entries === undefined || entries.some(entry => entry.name.toLowerCase() === name.toLowerCase())) {
     return undefined
   }
 
