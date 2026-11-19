@@ -12,11 +12,13 @@ const TEMPLATE_BASENAME = new RegExp(
 )
 
 // A .env path token inside a shell command. Preceded by start, whitespace, a
-// slash, a quote, a redirect or a shell list/brace/alternation character, so
-// `process.env.X` and `.envrc` do not match but `{x,.env}` and `(a|.env)` do.
+// slash, a quote, a redirect, a shell list/brace/alternation character, a
+// backslash (`\.env` is `.env` to the shell), `@` (curl's `-d @.env`) or a short
+// option (`-f.env`), so `process.env.X` and `.envrc` do not match but `{x,.env}` and
+// `(a|.env)` do. A regex pattern like `grep '\.env'` is denied too.
 // Templates are denied here too: any string the guard lets through, the shell
 // can rewrite into the real name (`f=.env.example; cat ${f%.example}`).
-const ENV_IN_COMMAND = /(^|[\s/'"=:<>(){},|;&`])\.env(?![A-Za-z0-9_])/
+const ENV_IN_COMMAND = /(^|[\s/'"=:<>(){},|;&`\\@]|-[A-Za-z])\.env(?![A-Za-z0-9_])/
 
 // The only sanctioned ways in, plain args and no shell operators:
 // env-check (keys, comments, set/empty) and env-append (add new keys, never overwrite).
@@ -27,7 +29,7 @@ const HINT =
   'Use ~/.claude/bin/env-check [file...] to inspect (keys, comments, set/empty) or ~/.claude/bin/env-append <file> KEY=VALUE to add a new key.'
 
 const TEMPLATE_HINT =
-  'Templates (.env.example, .env.sample, ...) can be read and edited with the Read and Edit tools, not from Bash.'
+  'Templates (.env.example, .env.sample, ...) can be read and edited with the Read, Edit and Write tools, not from Bash.'
 
 const basename = (path: string) => path.split('/').pop() ?? ''
 
