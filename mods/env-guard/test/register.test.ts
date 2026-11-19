@@ -45,6 +45,7 @@ const secrets = [
   '.env.example.bak',
   'prod.env',
   'examples.env',
+  '.env.example.env',
 ]
 
 test('file tools allow dotenv templates', () => {
@@ -82,6 +83,11 @@ test('commands on templates pass', () => {
     'cat .env.example; echo done',
     'cat .env.example && git add .env.example',
     'cat example.env',
+    "cat .env.example''",
+    'x=`cat .env.example`',
+    'cat .env.example|head',
+    'cat .env.example >/dev/null',
+    'cat .env.example\nsed -n 1p .env.sample',
   ]) {
     assert.ok(allowsCommand(c), c)
   }
@@ -110,6 +116,21 @@ test('commands touching a real dotenv file are denied', () => {
     'cat .env.example$SUFFIX',
     'cat .env.example[a-z]',
     'cat .env.example\\.local',
+    // The shell joins quoted pieces into one word.
+    'cat ".env.example".local',
+    "cat .env.example''.local",
+    "cat '.env.example'*",
+    'cat ".env.example"{,.local}',
+    'cat .env.example"$S"',
+    'cat .env".example"',
+    // Brace lists and zsh alternation and numeric globs.
+    'cat {x,.env}',
+    'cat {.env.example,.env.local}',
+    'cat (.env.example|.env)',
+    'cat (.env.example|.env.local)',
+    'cat .env.example<->',
+    'cat `echo .env`',
+    'cat .env.example\ncat .env',
     'echo X >> .env',
   ]) {
     assert.ok(!allowsCommand(c), c)

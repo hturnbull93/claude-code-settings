@@ -7,24 +7,26 @@ const ENV_BASENAME = /^(\.env(\.[^/]*)?|[^/]+\.env)$/
 // are not blocked: .env.example, .env.local.sample, example.env, ...
 const TEMPLATE = 'example|sample|template|dist'
 const TEMPLATE_BASENAME = new RegExp(
-  `^(?:\\.env(?:\\.[^/]+)?\\.(?:${TEMPLATE})|(?:[^/]+\\.)?(?:${TEMPLATE})\\.env)$`,
+  `^(?:\\.env(?:\\.[^/]+)?\\.(?:${TEMPLATE})|(?!\\.env\\.)(?:[^/]+\\.)?(?:${TEMPLATE})\\.env)$`,
 )
 
-// Every .env path token inside a shell command. Preceded by start, whitespace,
-// a slash, a quote or a redirect, so `process.env.X` and `.envrc` do not
-// match. Captures the dotted suffix (.local, .example, ...) and the character
-// after it.
+// Every .env path token inside a shell command: `.env` not preceded by a
+// letter, digit or underscore (so `process.env.X` does not match, but
+// `{x,.env}` and zsh `(a|.env)` do) and not followed by one (so `.envrc`
+// does not). Captures the dotted suffix (.local, .example, ...), any quotes
+// right after it, and the character after those.
 const ENV_IN_COMMAND =
-  /(?<=^|[\s/'"=:<>(])\.env(?![A-Za-z0-9_])((?:\.[A-Za-z0-9_-]+)*)(?=(.?))/gs
+  /(?<![A-Za-z0-9_])\.env(?![A-Za-z0-9_])((?:\.[A-Za-z0-9_-]+)*)(?=(['"]*)(.?))/gs
 
 // A token counts as a template only when its last suffix is a template one
-// and it ends cleanly: a glob, brace, variable, slash or backslash after it
-// could make the shell reach a real file (.env.example* matches
-// .env.example.local), so those stay denied.
+// and the shell word ends there. Quotes are skipped first, because the shell
+// joins `".env.example".local` into one word. Anything else after it (glob,
+// brace, `$`, `/`, `\`, zsh `<->`) could make the shell reach a real file
+// (.env.example* matches .env.example.local), so those stay denied.
 const TEMPLATE_SUFFIX = new RegExp(`\\.(?:${TEMPLATE})$`)
-const CLEAN_END = /^(?:|[\s'";&|)<>])$/
+const CLEAN_END = /^(?:|[\s;&|)>`])$/
 
-const isTemplateToken = ([, suffix, after]: RegExpMatchArray) =>
+const isTemplateToken = ([, suffix, , after]: RegExpMatchArray) =>
   TEMPLATE_SUFFIX.test(suffix) && CLEAN_END.test(after)
 
 // True if any .env token in the command is not a template.

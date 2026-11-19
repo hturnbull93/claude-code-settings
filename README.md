@@ -23,7 +23,8 @@ A Claude Code mod that stops Claude reading dotenv files directly.
 
 - `Read`, `Edit` and `Write` are denied on `.env`, `.env.*` and `*.env`.
 - Bash commands that mention a `.env` path are denied.
-- Templates are not blocked: basenames whose last part is `.example`, `.sample`, `.template` or `.dist` (`.env.example`, `.env.local.sample`), or `example.env`-style names (`example.env`, `prod.sample.env`). Agents can read, `sed` and edit those. A command that mentions a template and a real dotenv file is still denied, as is a template name followed by a glob, brace, `$`, `/` or `\` (`.env.example*` could expand to `.env.example.local`).
+- Templates are not blocked: basenames whose last part is `.example`, `.sample`, `.template` or `.dist` (`.env.example`, `.env.local.sample`), or, for the file tools, `example.env`-style names (`example.env`, `prod.sample.env`). Agents can read, `sed` and edit those. A command that mentions a template and a real dotenv file is still denied, as is a template name with anything joined on after it (quotes are skipped first): a glob, brace, `$`, `/`, `\` or more text (`.env.example*` could expand to `.env.example.local`, `".env.example".local` is one word).
+- Bash only spots names starting `.env`; `*.env` names like `prod.env` are caught by the file tools but not in commands.
 - Allowed instead: `bin/env-check [file...]` (lists keys, comments and set/EMPTY, never values) and `bin/env-append <file> KEY=VALUE` (adds new keys, refuses existing ones, never overwrites).
 
 It is a tripwire against accidents, not a sandbox: obfuscated shell, scripts that read the file, and MCP file tools are not covered. The template allowance goes by name only, so a symlink named `.env.example` that points at `.env`, or a directory named like a template that a path goes through, gets past it.
