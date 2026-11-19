@@ -1,1 +1,1 @@
-{ "name": "env-guard", "version": "0.1.0", "description": "Blocks Claude from reading .env files; only ~/.claude/bin/env-check (keys, comments, set/empty) is allowed" }
+{ "name": "env-guard", "version": "0.2.0", "description": "Blocks Claude from reading dotenv files; ~/.claude/bin/env-check (keys, comments, set/empty) and env-append (new keys only) are the ways in, and the Read/Edit/Write tools may open templates (.example, .sample, .template, .dist)" }
