@@ -23,11 +23,12 @@ A Claude Code mod that stops Claude reading dotenv files directly.
 
 - `Read`, `Edit` and `Write` are denied on `.env`, `.env.*` and `*.env`.
 - Bash commands that mention a `.env` path are denied.
-- Templates are not blocked: basenames whose last part is `.example`, `.sample`, `.template` or `.dist` (`.env.example`, `.env.local.sample`), or, for the file tools, `example.env`-style names (`example.env`, `prod.sample.env`). Agents can read, `sed` and edit those. A command that mentions a template and a real dotenv file is still denied, as is a template name with anything joined on after it (quotes are skipped first): a glob, brace, `$`, `/`, `\` or more text (`.env.example*` could expand to `.env.example.local`, `".env.example".local` is one word).
+- Templates are open to the file tools only: `Read`, `Edit` and `Write` may open a basename whose last part is `.example`, `.sample`, `.template` or `.dist` (`.env.example`, `.env.local.sample`), or an `example.env`-style name (`example.env`, `prod.sample.env`), but only if the path, with symlinks followed, lands on a template too. A template-named symlink to `.env`, a dangling one, a path with `.` or `..` segments, a relative path, or a folder that isn't there is denied.
+- Bash has no template exemption: any command mentioning a `.env` name is denied, templates included. Any name the guard let through, the shell could rewrite into the real one (`f=.env.example; cat ${f%.example}`), so agents edit templates with the `Edit` tool instead.
 - Bash only spots names starting `.env`; `*.env` names like `prod.env` are caught by the file tools but not in commands.
 - Allowed instead: `bin/env-check [file...]` (lists keys, comments and set/EMPTY, never values) and `bin/env-append <file> KEY=VALUE` (adds new keys, refuses existing ones, never overwrites).
 
-It is a tripwire against accidents, not a sandbox: obfuscated shell, scripts that read the file, and MCP file tools are not covered. The template allowance goes by name only, so a symlink named `.env.example` that points at `.env`, or a directory named like a template that a path goes through, gets past it.
+It is a tripwire against accidents, not a sandbox: obfuscated shell, scripts that read the file, MCP file tools, and the `Grep` and `NotebookEdit` tools are not covered. Names are matched case-sensitively, so on a case-insensitive file system (macOS) `.ENV` gets past it. The file tools follow links only for dotenv-looking names: a symlink with an unrelated name (`notes.txt` pointing at `.env`), or a hard link, gets past it. The link check runs just before the tool opens the file, so a link swapped in between is not seen.
 
 Agent pods on the Fedora server use this same mod: `agent-pod` (in server-ops) mounts this repo's `mods/` folder read-only into each pod, so a change here reaches pods as soon as the host checkout is updated (new Claude sessions pick it up).
 

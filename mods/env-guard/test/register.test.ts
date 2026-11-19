@@ -2,6 +2,9 @@
 // strips the types, so no build step).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import * as nodeFs from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { register } from '../hooks/register.ts'
 
 type Handler = (...args: any[]) => any
@@ -14,11 +17,32 @@ const on = (_event: string, filter: { tool: string }, handler: Handler) => {
 }
 ;(register as any)(on)
 
+// `$.fs.stat` / `$.fs.list` as the host documents them, backed by node:fs:
+// stat rejects a missing path, follows a link, and answers a link that leads
+// nowhere as `other` with no realPath.
+const fs = {
+  stat: async (path: string, options?: { resolve: boolean }) => {
+    const isLink = nodeFs.lstatSync(path).isSymbolicLink()
+    const target = nodeFs.statSync(path, { throwIfNoEntry: false })
+    if (!target) {
+      return { kind: 'other', size: 0, mtimeMs: 0, isLink }
+    }
+    return {
+      kind: target.isFile() ? 'file' : target.isDirectory() ? 'dir' : 'other',
+      size: target.size,
+      mtimeMs: target.mtimeMs,
+      isLink,
+      ...(options?.resolve ? { realPath: nodeFs.realpathSync(path) } : {}),
+    }
+  },
+  list: async (path: string) => nodeFs.readdirSync(path).map(name => ({ name })),
+}
+
 const ALLOWED = Symbol('allowed')
-const ctx = { plugin: { name: 'env-guard' } }
+const ctx = { plugin: { name: 'env-guard' }, fs }
 const run = (tool: string, e: object) => handlers.get(tool)!(ctx, e, () => ALLOWED)
 
-const allowsPath = (tool: string, p: string) => run(tool, { file_path: p }) === ALLOWED
+const allowsPath = async (tool: string, p: string) => (await run(tool, { file_path: p })) === ALLOWED
 const allowsCommand = (c: string) => run('Bash', { command: c }) === ALLOWED
 
 const FILE_TOOLS = ['Read', 'Edit', 'Write']
@@ -48,48 +72,96 @@ const secrets = [
   '.env.example.env',
 ]
 
-test('file tools allow dotenv templates', () => {
+// A real folder: every template and secret as a plain file, plus traps.
+const repo = nodeFs.realpathSync(nodeFs.mkdtempSync(join(tmpdir(), 'env-guard-')))
+for (const name of [...templates, ...secrets]) {
+  nodeFs.writeFileSync(join(repo, name), 'KEY=1\n')
+}
+nodeFs.mkdirSync(join(repo, 'sub'))
+nodeFs.mkdirSync(join(repo, 'elsewhere'))
+nodeFs.writeFileSync(join(repo, 'elsewhere', '.env.example'), 'KEY=\n')
+// Named like a template, leads to a real dotenv file.
+nodeFs.symlinkSync(join(repo, '.env'), join(repo, 'sub', '.env.example'))
+nodeFs.symlinkSync('../.env.local', join(repo, 'sub', '.env.sample'))
+// Named like a template, leads nowhere yet: a Write would create the real file.
+nodeFs.symlinkSync(join(repo, 'sub', '.env.production'), join(repo, 'sub', '.env.dist'))
+// Named like a template, leads to a file that isn't a template.
+nodeFs.symlinkSync(join(repo, 'README.md'), join(repo, 'sub', 'example.env'))
+// Leads to a template: fine.
+nodeFs.symlinkSync(join(repo, 'elsewhere', '.env.example'), join(repo, 'sub', '.env.template'))
+// A folder link, for `..` tricks.
+nodeFs.symlinkSync(join(repo, 'elsewhere'), join(repo, 'link'))
+process.on('exit', () => nodeFs.rmSync(repo, { recursive: true, force: true }))
+
+test('file tools allow dotenv templates', async () => {
   for (const tool of FILE_TOOLS) {
     for (const name of templates) {
-      assert.ok(allowsPath(tool, `/repo/${name}`), `${tool} ${name}`)
+      assert.ok(await allowsPath(tool, join(repo, name)), `${tool} ${name}`)
     }
   }
 })
 
-test('file tools still block real dotenv files', () => {
+test('file tools allow a template that is not there yet (Write)', async () => {
+  for (const tool of FILE_TOOLS) {
+    assert.ok(await allowsPath(tool, join(repo, 'elsewhere', '.env.sample')), tool)
+  }
+})
+
+test('file tools allow a symlink that leads to a template', async () => {
+  assert.ok(await allowsPath('Read', join(repo, 'sub', '.env.template')))
+})
+
+test('file tools still block real dotenv files', async () => {
   for (const tool of FILE_TOOLS) {
     for (const name of secrets) {
-      assert.ok(!allowsPath(tool, `/repo/${name}`), `${tool} ${name}`)
+      assert.ok(!(await allowsPath(tool, join(repo, name))), `${tool} ${name}`)
     }
   }
 })
 
-test('file tools leave unrelated files alone', () => {
-  for (const name of ['.envrc', 'env.ts', 'README.md', 'environment.example']) {
-    assert.ok(allowsPath('Read', `/repo/${name}`), name)
+test('file tools block a template-named symlink to a real dotenv file', async () => {
+  for (const tool of FILE_TOOLS) {
+    for (const name of ['.env.example', '.env.sample', '.env.dist', 'example.env']) {
+      assert.ok(!(await allowsPath(tool, join(repo, 'sub', name))), `${tool} sub/${name}`)
+    }
   }
 })
 
-test('commands on templates pass', () => {
+test('file tools block traversal and paths that do not resolve', async () => {
+  for (const p of [
+    `${repo}/.env.example/../.env`,
+    `${repo}/sub/../.env.example`,
+    `${repo}/link/../.env.example`,
+    `${repo}/./.env.example`,
+    `${repo}//.env.example`,
+    `${repo}/missing/.env.example`,
+    `${repo}/.env/.env.example`,
+    '.env.example',
+    '~/.env.example',
+  ]) {
+    for (const tool of FILE_TOOLS) {
+      assert.ok(!(await allowsPath(tool, p)), `${tool} ${p}`)
+    }
+  }
+})
+
+test('file tools leave unrelated files alone', async () => {
+  for (const name of ['.envrc', 'env.ts', 'README.md', 'environment.example']) {
+    assert.ok(await allowsPath('Read', `/repo/${name}`), name)
+  }
+})
+
+test('commands naming only a template are denied (use the file tools)', () => {
   for (const c of [
     'cat .env.example',
     "sed -i '/^BACKUP_/,/^$/d' .env.example",
     'sed -n 1,20p apps/api/.env.sample',
-    'cp .env.example "$TMPDIR/x"',
     'git diff -- .env.template',
     'grep -n KEY ./.env.dist',
     "cat '.env.example'",
-    'cat ".env.local.example"',
-    'cat .env.example; echo done',
-    'cat .env.example && git add .env.example',
-    'cat example.env',
-    "cat .env.example''",
-    'x=`cat .env.example`',
     'cat .env.example|head',
-    'cat .env.example >/dev/null',
-    'cat .env.example\nsed -n 1p .env.sample',
   ]) {
-    assert.ok(allowsCommand(c), c)
+    assert.ok(!allowsCommand(c), c)
   }
 })
 
@@ -99,36 +171,12 @@ test('commands touching a real dotenv file are denied', () => {
     'cat .env.local',
     'cat apps/api/.env.production',
     'cp .env.example .env',
-    'cat .env.example .env',
-    'diff .env .env.example',
     'cat .env.example && cat .env',
-    'cat .env.example/../.env',
-    'cat .env.example.local',
-    'cat .env.examples',
-    'cat .env.example.bak',
-    // Globs, braces and variables could expand to a real file.
     'cat .env.*',
-    'cat .env.example*',
-    'cat .env.example?',
-    'cat .env.ex*',
-    'cat .env{.example,}',
-    'cat .env.example{,.local}',
-    'cat .env.example$SUFFIX',
-    'cat .env.example[a-z]',
-    'cat .env.example\\.local',
-    // The shell joins quoted pieces into one word.
-    'cat ".env.example".local',
-    "cat .env.example''.local",
-    "cat '.env.example'*",
-    'cat ".env.example"{,.local}',
-    'cat .env.example"$S"',
-    'cat .env".example"',
-    // Brace lists and zsh alternation and numeric globs.
     'cat {x,.env}',
     'cat {.env.example,.env.local}',
     'cat (.env.example|.env)',
-    'cat (.env.example|.env.local)',
-    'cat .env.example<->',
+    'cat x;.env',
     'cat `echo .env`',
     'cat .env.example\ncat .env',
     'echo X >> .env',
@@ -137,8 +185,34 @@ test('commands touching a real dotenv file are denied', () => {
   }
 })
 
+test('the reviewed bypasses are denied', () => {
+  for (const c of [
+    // Substitutions and zsh glob groups joining past `)`, `|` or a backtick.
+    'cat $(echo .env.example)*',
+    'cat `echo .env.example`*',
+    'cat .env.example`echo .local`',
+    'cat (.env.example)*',
+    'cat (.env.example|zz).local',
+    'cat (.env.example)(|.local)',
+    // Shell string manipulation turning a template name into the real one.
+    'f=.env.example; cat ${f%.example}',
+    'f=.env.example; cp $f ${f%.example}',
+    'cat $(basename .env.example .example)',
+    'printf %s .env.example | sed s/.example// | xargs cat',
+  ]) {
+    assert.ok(!allowsCommand(c), c)
+  }
+})
+
 test('commands without a dotenv path pass', () => {
-  for (const c of ['echo $HOME', 'node -e "process.env.X"', 'cat .envrc', 'ls']) {
+  for (const c of [
+    'echo $HOME',
+    'node -e "process.env.X"',
+    'cat .envrc',
+    'ls',
+    'grep -rn "\\.env" .',
+    'ls *.env',
+  ]) {
     assert.ok(allowsCommand(c), c)
   }
 })
